@@ -1,0 +1,19 @@
+# Android Studio
+*.iml
+.idea/
+
+# Кеши Gradle и Kotlin
+.gradle/
+.kotlin/
+
+# Локальный путь к Android SDK
+local.properties
+
+# Результаты сборки во всех модулях
+build/
+
+# Служебные файлы
+captures/
+.externalNativeBuild/
+.cxx/
+.DS_Store
