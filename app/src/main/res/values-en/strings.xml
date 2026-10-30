@@ -19,7 +19,7 @@
     <string name="confirm_password">Confirm password</string>
     <string name="register_button">Register</string>
 
-    <string name="characters_title">F1 drivers</string>
+    <string name="characters_title">Driver Standings</string>
     <string name="settings">Settings</string>
 
     <string name="character_status">Number: %1$s</string>
@@ -55,7 +55,7 @@
     <string name="cancel">Cancel</string>
 
     <string name="title_activity_registration">Registration</string>
-    <string name="title_activity_content">Formula 1 drivers</string>
+    <string name="title_activity_content">Driver Standings</string>
     <string name="title_activity_settings">Settings</string>
 
     <string name="backup_created">Done</string>
@@ -63,8 +63,8 @@
     <string name="ok">OK</string>
 
     <string name="content_subtitle">2026 season · data from f1api.dev</string>
-    <string name="empty_content">No driver data. Restore a backup in settings.</string>
-    <string name="clear_content">Clear list</string>
+    <string name="empty_content">No data. Refresh the standings or restore a backup in settings.</string>
+    <string name="clear_content">Clear</string>
     <string name="load_demo">Load demo data</string>
     <string name="backup_failed">Could not create a backup. Check that the driver list is not empty.</string>
     <string name="restore_failed">The backup is missing or damaged.</string>
@@ -75,4 +75,23 @@
     <string name="profile_login">Login: %1$s</string>
     <string name="profile_name">Name: %1$s</string>
     <string name="load_more">Show more (%1$d)</string>
+    <string name="standings_driver">Driver / team</string>
+    <string name="standings_points">Points</string>
+    <string name="refresh_content">Refresh</string>
+    <string name="retry_loading">Retry</string>
+    <string name="load_next_page">Load more</string>
+    <string name="loading_data">Loading standings…</string>
+    <string name="loading_more">Loading the next page…</string>
+    <string name="network_subtitle">%1$d season · f1api.dev</string>
+    <string name="network_subtitle_unknown">Formula 1 driver standings</string>
+    <string name="loaded_count">Drivers loaded: %1$d</string>
+    <string name="cached_data_notice">Previously saved data is displayed.</string>
+    <string name="backup_data_notice">Data restored from a backup.</string>
+    <string name="legacy_data_notice">The old saved data has no positions or points. Refresh the standings.</string>
+    <string name="error_network">Cannot connect to the server. Check your internet connection and retry.</string>
+    <string name="error_timeout">The server did not respond in time. Please retry.</string>
+    <string name="error_http">Server error (%1$d). Please try again later.</string>
+    <string name="error_not_found">No standings found for the current season.</string>
+    <string name="error_invalid_data">The server returned data in an unexpected format. Please try again later.</string>
+    <string name="error_unknown">Could not load the standings. Please retry.</string>
 </resources>

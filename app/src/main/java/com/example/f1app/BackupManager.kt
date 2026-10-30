@@ -3,75 +3,56 @@ package com.example.f1app
 import android.content.Context
 import android.util.AtomicFile
 import android.util.Log
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
 object BackupManager {
-
     private const val BACKUP_FILE_NAME = "f1_drivers_2026_backup.json"
     private const val CONTENT_PREFS = "f1_content_2026"
     private const val CONTENT_KEY = "drivers"
+    private const val SEASON_KEY = "season"
 
-    private const val SOURCE_URL =
-        "https://f1api.dev/api/current/drivers-championship"
-
-    fun getCurrentDrivers(context: Context): List<Driver> {
-        val json = context
-            .getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE)
-            .getString(CONTENT_KEY, null)
-            ?: return demoDrivers
-
+    fun getCurrentSnapshot(context: Context): StoredChampionship {
+        val prefs = context.getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE)
+        val json = prefs.getString(CONTENT_KEY, null) ?: return StoredChampionship()
         return try {
-            decodeDrivers(JSONArray(json))
+            val drivers = DriverJsonCodec.decodeDrivers(json)
+            val season = if (prefs.contains(SEASON_KEY)) {
+                prefs.getInt(SEASON_KEY, 2026)
+            } else null
+            StoredChampionship(drivers, season)
         } catch (exception: Exception) {
-            Log.e("F1Backup", "Cannot read driver data", exception)
-            emptyList()
+            Log.e("F1Backup", "Cannot read cached standings", exception)
+            StoredChampionship()
         }
     }
 
-    fun setCurrentDrivers(
-        context: Context,
-        drivers: List<Driver>
-    ) {
-        context
-            .getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE)
+    fun setCurrentSnapshot(context: Context, snapshot: StoredChampionship) {
+        val editor = context.getSharedPreferences(CONTENT_PREFS, Context.MODE_PRIVATE)
             .edit()
-            .putString(CONTENT_KEY, encodeDrivers(drivers).toString())
-            .apply()
+            .putString(CONTENT_KEY, DriverJsonCodec.encodeDrivers(snapshot.drivers))
+        if (snapshot.season == null) editor.remove(SEASON_KEY)
+        else editor.putInt(SEASON_KEY, snapshot.season)
+        editor.apply()
+    }
+
+    fun getCurrentDrivers(context: Context): List<Driver> = getCurrentSnapshot(context).drivers
+
+    fun setCurrentDrivers(context: Context, drivers: List<Driver>) {
+        setCurrentSnapshot(context, getCurrentSnapshot(context).copy(drivers = drivers))
     }
 
     fun createBackup(context: Context): Boolean {
-        val drivers = getCurrentDrivers(context)
-
-        if (drivers.isEmpty()) {
-            return false
-        }
-
-        val file = AtomicFile(
-            File(context.filesDir, BACKUP_FILE_NAME)
-        )
-
+        val snapshot = getCurrentSnapshot(context)
+        if (snapshot.drivers.isEmpty()) return false
+        val file = AtomicFile(File(context.filesDir, BACKUP_FILE_NAME))
         var output: FileOutputStream? = null
-
         return try {
-            val root = JSONObject().apply {
-                put("version", 1)
-                put("domain", "formula1")
-                put("season", 2026)
-                put("created_at", System.currentTimeMillis())
-                put("source", SOURCE_URL)
-                put("drivers", encodeDrivers(drivers))
-            }
-
+            val bytes = DriverJsonCodec.encodeBackup(snapshot, System.currentTimeMillis())
+                .toByteArray(Charsets.UTF_8)
             val stream = file.startWrite()
             output = stream
-
-            stream.write(
-                root.toString(2).toByteArray(Charsets.UTF_8)
-            )
-
+            stream.write(bytes)
             file.finishWrite(stream)
             true
         } catch (exception: Exception) {
@@ -81,28 +62,15 @@ object BackupManager {
         }
     }
 
-    fun restoreBackup(context: Context): List<Driver>? {
+    fun restoreBackup(context: Context): StoredChampionship? {
         return try {
-            val file = AtomicFile(
-                File(context.filesDir, BACKUP_FILE_NAME)
-            )
-
-            val root = JSONObject(
+            val file = AtomicFile(File(context.filesDir, BACKUP_FILE_NAME))
+            val snapshot = DriverJsonCodec.decodeBackup(
                 String(file.readFully(), Charsets.UTF_8)
             )
-
-            require(root.getInt("version") == 1)
-            require(root.getString("domain") == "formula1")
-            require(root.getInt("season") == 2026)
-
-            val drivers = decodeDrivers(
-                root.getJSONArray("drivers")
-            )
-
-            require(drivers.isNotEmpty())
-
-            setCurrentDrivers(context, drivers)
-            drivers
+            require(snapshot.drivers.isNotEmpty())
+            setCurrentSnapshot(context, snapshot)
+            snapshot
         } catch (exception: Exception) {
             Log.e("F1Backup", "Cannot restore backup", exception)
             null
@@ -111,10 +79,7 @@ object BackupManager {
 
     fun deleteBackup(context: Context): Boolean {
         return try {
-            val file = AtomicFile(
-                File(context.filesDir, BACKUP_FILE_NAME)
-            )
-
+            val file = AtomicFile(File(context.filesDir, BACKUP_FILE_NAME))
             file.delete()
             !file.baseFile.exists()
         } catch (exception: Exception) {
@@ -123,61 +88,17 @@ object BackupManager {
         }
     }
 
-    fun backupExists(context: Context): Boolean {
-        return File(
-            context.filesDir,
-            BACKUP_FILE_NAME
-        ).exists()
-    }
+    fun backupExists(context: Context): Boolean =
+        File(context.filesDir, BACKUP_FILE_NAME).exists()
+}
 
-    private fun encodeDrivers(drivers: List<Driver>): JSONArray {
-        return JSONArray().apply {
-            drivers.forEach { driver ->
-                put(
-                    JSONObject().apply {
-                        put("driverId", driver.driverId)
-                        put("name", driver.name)
-                        put("surname", driver.surname)
-                        put("number", driver.number)
-                        put("nationality", driver.nationality)
-                        put("shortName", driver.shortName)
-                        put("teamId", driver.teamId)
-                        put("position", driver.position)
-                        put("points", driver.points)
-                    }
-                )
-            }
-        }
-    }
-
-    private fun decodeDrivers(array: JSONArray): List<Driver> {
-        val drivers = (0 until array.length()).map { index ->
-            val json = array.getJSONObject(index)
-
-            Driver(
-                driverId = json.getString("driverId"),
-                name = json.getString("name"),
-                surname = json.getString("surname"),
-                number = json.getInt("number"),
-                nationality = json.getString("nationality"),
-                shortName = json.getString("shortName"),
-                teamId = json.getString("teamId"),
-                position = json.optInt("position", 0),
-                points = json.optInt("points", 0)
-            ).also { driver ->
-                require(driver.driverId.isNotBlank())
-                require(driver.name.isNotBlank())
-                require(driver.surname.isNotBlank())
-                require(driver.number > 0)
-                require(driver.position >= 0)
-                require(driver.points >= 0)
-            }
-        }
-
-        require(
-            drivers.map { it.driverId }.distinct().size == drivers.size
-        )
-
-        return drivers
-    }
+class PreferencesChampionshipStorage(context: Context) : ChampionshipStorage {
+    private val appContext = context.applicationContext
+    override fun read() = BackupManager.getCurrentSnapshot(appContext)
+    override fun write(snapshot: StoredChampionship) =
+        BackupManager.setCurrentSnapshot(appContext, snapshot)
+    override fun createBackup() = BackupManager.createBackup(appContext)
+    override fun restoreBackup() = BackupManager.restoreBackup(appContext)
+    override fun deleteBackup() = BackupManager.deleteBackup(appContext)
+    override fun backupExists() = BackupManager.backupExists(appContext)
 }

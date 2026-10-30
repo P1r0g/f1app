@@ -1,0 +1,1 @@
+{"api":"https://f1api.dev","url":"https://f1api.dev/api/current/drivers-championship?limit=10&offset=30","message":"No drivers championship found for this year, try with other one.","status":404}

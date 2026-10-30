@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -101,8 +105,22 @@ private fun F1App(
     }
     var userLogin by rememberSaveable { mutableStateOf(AppSettings.getUserLogin(context)) }
     var userName by rememberSaveable { mutableStateOf(AppSettings.getUserName(context)) }
-    var drivers by remember { mutableStateOf(BackupManager.getCurrentDrivers(context)) }
-    var backupExists by remember { mutableStateOf(BackupManager.backupExists(context)) }
+    val appContext = context.applicationContext
+    val contentFactory = remember(appContext) {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                require(modelClass.isAssignableFrom(ContentViewModel::class.java))
+                return ContentViewModel(
+                    repository = F1Repository(F1ApiClient.create()),
+                    storage = PreferencesChampionshipStorage(appContext),
+                    logger = { message -> Log.d("F1Network", message) }
+                ) as T
+            }
+        }
+    }
+    val contentModel: ContentViewModel = viewModel(factory = contentFactory)
+    val contentState by contentModel.state.collectAsStateWithLifecycle()
 
     ObserveScreenLifecycles(navController)
 
@@ -156,20 +174,18 @@ private fun F1App(
             }
 
             composable(AppRoutes.CONTENT) {
+                LaunchedEffect(contentModel) {
+                    contentModel.onScreenOpened()
+                }
                 ContentScreen(
-                    drivers = drivers,
+                    state = contentState,
+                    onRefresh = contentModel::refresh,
+                    onLoadMore = contentModel::loadMore,
+                    onClearClick = contentModel::clearContent,
                     onSettingsClick = {
                         navController.navigate(AppRoutes.SETTINGS) {
                             launchSingleTop = true
                         }
-                    },
-                    onClearClick = {
-                        BackupManager.setCurrentDrivers(context, emptyList())
-                        drivers = emptyList()
-                    },
-                    onLoadDemoClick = {
-                        BackupManager.setCurrentDrivers(context, demoDrivers)
-                        drivers = demoDrivers
                     }
                 )
             }
@@ -180,7 +196,7 @@ private fun F1App(
                     initialFontScale = fontScale,
                     initialLanguage = AppSettings.getLanguage(context),
                     initialNotifications = notifications,
-                    initialBackupExists = backupExists,
+                    initialBackupExists = contentState.backupExists,
                     userName = userName,
                     userLogin = userLogin,
                     onDarkThemeChanged = { enabled ->
@@ -197,8 +213,7 @@ private fun F1App(
                         AppSettings.setNotificationsEnabled(context, enabled)
                     },
                     onCreateBackup = {
-                        val created = BackupManager.createBackup(context)
-                        backupExists = BackupManager.backupExists(context)
+                        val created = contentModel.createBackup()
                         AlertDialog.Builder(context)
                             .setTitle(R.string.backup)
                             .setMessage(
@@ -213,12 +228,10 @@ private fun F1App(
                             .setTitle(R.string.restore_backup)
                             .setMessage(R.string.restore_backup_question)
                             .setPositiveButton(R.string.restore) { _, _ ->
-                                val restored = BackupManager.restoreBackup(context)
-                                if (restored != null) drivers = restored
-                                backupExists = BackupManager.backupExists(context)
+                                val restored = contentModel.restoreBackup()
                                 Toast.makeText(
                                     context,
-                                    if (restored != null) R.string.backup_restored
+                                    if (restored) R.string.backup_restored
                                     else R.string.restore_failed,
                                     Toast.LENGTH_LONG
                                 ).show()
@@ -231,8 +244,7 @@ private fun F1App(
                             .setTitle(R.string.delete_backup)
                             .setMessage(R.string.delete_backup_question)
                             .setPositiveButton(R.string.delete) { _, _ ->
-                                val deleted = BackupManager.deleteBackup(context)
-                                backupExists = BackupManager.backupExists(context)
+                                val deleted = contentModel.deleteBackup()
                                 if (!deleted) {
                                     Toast.makeText(
                                         context, R.string.delete_failed, Toast.LENGTH_LONG

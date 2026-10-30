@@ -1,41 +1,14 @@
 package com.example.f1app
 
-import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,123 +16,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.f1app.ui.theme.F1appTheme
+import java.math.BigDecimal
 
-class ContentActivity : ComponentActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(
-            LocaleHelper.applyLanguage(
-                newBase,
-                AppSettings.getLanguage(newBase)
-            )
-        )
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        Log.d("F1Lifecycle", "ContentActivity: onCreate")
-        showContent()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d("F1Lifecycle", "ContentActivity: onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("F1Lifecycle", "ContentActivity: onResume")
-
-        val expectedLanguage =
-            if (AppSettings.getLanguage(this) == "English") "en" else "ru"
-
-        if (resources.configuration.locales[0].language != expectedLanguage) {
-            recreate()
-            return
-        }
-
-        showContent()
-    }
-
-    override fun onPause() {
-        Log.d("F1Lifecycle", "ContentActivity: onPause")
-        super.onPause()
-    }
-
-    override fun onStop() {
-        Log.d("F1Lifecycle", "ContentActivity: onStop")
-        super.onStop()
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.d("F1Lifecycle", "ContentActivity: onRestart")
-    }
-
-    override fun onDestroy() {
-        Log.d("F1Lifecycle", "ContentActivity: onDestroy")
-        super.onDestroy()
-    }
-
-    private fun showContent() {
-        val currentDrivers = BackupManager.getCurrentDrivers(this)
-
-        setContent {
-            var drivers by remember(currentDrivers) {
-                mutableStateOf(currentDrivers)
-            }
-
-            F1appTheme(
-                darkTheme = AppSettings.isDarkTheme(this),
-                fontScale = AppSettings.getFontScale(this)
-            ) {
-                ContentScreen(
-                    drivers = drivers,
-                    onSettingsClick = {
-                        startActivity(
-                            Intent(this, SettingsActivity::class.java)
-                        )
-                    },
-                    onClearClick = {
-                        BackupManager.setCurrentDrivers(this, emptyList())
-                        drivers = emptyList()
-                    },
-                    onLoadDemoClick = {
-                        BackupManager.setCurrentDrivers(this, demoDrivers)
-                        drivers = demoDrivers
-                    }
-                )
-            }
-        }
-    }
-}
-
+// This file now contains only Compose UI; MainActivity hosts all four screens.
 @Composable
 fun ContentScreen(
-    drivers: List<Driver>,
+    state: ContentUiState,
     onSettingsClick: () -> Unit,
-    onClearClick: () -> Unit = {},
-    onLoadDemoClick: () -> Unit = {}
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
+    onClearClick: () -> Unit
 ) {
-    val english =
-        LocalConfiguration.current.locales[0].language == "en"
-
-    var visibleCount by remember(drivers) {
-        mutableStateOf(20)
-    }
-
-    val standings = remember(drivers) {
-        drivers.sortedBy {
-            if (it.position > 0) it.position else Int.MAX_VALUE
-        }
-    }
-
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .statusBarsPadding().navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
@@ -168,100 +39,126 @@ fun ContentScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = if (english) {
-                    "Driver Standings"
-                } else {
-                    "Кубок пилотов"
-                },
-                modifier = Modifier.weight(1f),
+                stringResource(R.string.characters_title),
+                Modifier.weight(1f),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-
-            Button(onClick = onSettingsClick) {
-                Text(stringResource(R.string.settings))
-            }
+            Button(onClick = onSettingsClick) { Text(stringResource(R.string.settings)) }
         }
-
         Spacer(Modifier.height(6.dp))
-
         Text(
-            text = if (english) {
-                "2026 season · f1api.dev snapshot"
-            } else {
-                "Сезон 2026 · снимок данных f1api.dev"
-            },
+            text = state.season?.let {
+                stringResource(R.string.network_subtitle, it)
+            } ?: stringResource(R.string.network_subtitle_unknown),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
         Spacer(Modifier.height(12.dp))
-
-        OutlinedButton(
-            onClick = if (drivers.isEmpty()) {
-                onLoadDemoClick
-            } else {
-                onClearClick
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = when {
-                    drivers.isEmpty() && english -> "Load standings"
-                    drivers.isEmpty() -> "Загрузить таблицу"
-                    english -> "Clear standings"
-                    else -> "Очистить таблицу"
-                }
-            )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onRefresh,
+                enabled = !state.isLoading,
+                modifier = Modifier.weight(1f)
+            ) { Text(stringResource(R.string.refresh_content)) }
+            OutlinedButton(
+                onClick = onClearClick,
+                enabled = state.drivers.isNotEmpty(),
+                modifier = Modifier.weight(1f)
+            ) { Text(stringResource(R.string.clear_content)) }
         }
 
+        if (state.isLoading && !state.isAppending && state.drivers.isNotEmpty()) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        state.error?.let { error ->
+            Spacer(Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(contentErrorMessage(error))
+                    TextButton(
+                        onClick = if (error.append) onLoadMore else onRefresh,
+                        enabled = !state.isLoading
+                    ) { Text(stringResource(R.string.retry_loading)) }
+                }
+            }
+        }
+
+        if (state.drivers.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            if (state.origin != DataOrigin.NETWORK || state.error != null) {
+                Text(
+                    stringResource(
+                        if (state.origin == DataOrigin.BACKUP) R.string.backup_data_notice
+                        else R.string.cached_data_notice
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (state.drivers.any { it.points == null }) {
+                Text(
+                    stringResource(R.string.legacy_data_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                stringResource(R.string.loaded_count, state.drivers.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
-        if (drivers.isEmpty()) {
-            Text(
-                text = if (english) {
-                    "No standings. Load data or restore a backup in settings."
-                } else {
-                    "Таблица пуста. Загрузите данные или восстановите копию в настройках."
-                },
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        } else {
-            StandingsHeader(english = english)
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                items(
-                    items = standings.take(visibleCount),
-                    key = { it.driverId }
-                ) { driver ->
-                    DriverCard(driver)
+        if (state.drivers.isEmpty()) {
+            if (state.isLoading) {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.loading_data),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
-
-                if (visibleCount < standings.size) {
-                    item(key = "load_more") {
-                        Button(
-                            onClick = {
-                                visibleCount =
-                                    (visibleCount + 20)
-                                        .coerceAtMost(standings.size)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp)
+            } else {
+                Text(
+                    stringResource(R.string.empty_content),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        } else {
+            StandingsHeader()
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                // The list contains only rows actually loaded from the server/cache.
+                items(state.drivers, key = { it.driverId }) { driver -> DriverCard(driver) }
+                item(key = "load_more") {
+                    if (state.isLoading && state.isAppending) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            CircularProgressIndicator(Modifier.size(24.dp))
                             Text(
-                                stringResource(
-                                    R.string.load_more,
-                                    standings.size - visibleCount
-                                )
+                                stringResource(R.string.loading_more),
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
+                    } else if (state.hasMore) {
+                        Button(
+                            onClick = onLoadMore,
+                            enabled = !state.isLoading,
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                        ) { Text(stringResource(R.string.load_next_page)) }
                     }
                 }
             }
@@ -270,36 +167,32 @@ fun ContentScreen(
 }
 
 @Composable
-private fun StandingsHeader(english: Boolean) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
+private fun contentErrorMessage(error: ContentError): String = when (error.kind) {
+    ContentErrorKind.NETWORK -> stringResource(R.string.error_network)
+    ContentErrorKind.TIMEOUT -> stringResource(R.string.error_timeout)
+    ContentErrorKind.INVALID_DATA -> stringResource(R.string.error_invalid_data)
+    ContentErrorKind.UNKNOWN -> stringResource(R.string.error_unknown)
+    ContentErrorKind.HTTP -> if (error.httpCode == 404) {
+        stringResource(R.string.error_not_found)
+    } else stringResource(R.string.error_http, error.httpCode ?: 0)
+}
+
+@Composable
+private fun StandingsHeader() {
+    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text("№", Modifier.width(40.dp), fontWeight = FontWeight.Bold)
             Text(
-                text = "№",
-                modifier = Modifier.width(40.dp),
+                stringResource(R.string.standings_driver),
+                Modifier.weight(1f).padding(start = 14.dp),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
             )
-
             Text(
-                text = if (english) "Driver / team" else "Пилот / команда",
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 14.dp),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = if (english) "Points" else "Очки",
-                modifier = Modifier.width(64.dp),
+                stringResource(R.string.standings_points), Modifier.width(64.dp),
                 textAlign = TextAlign.End,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold
@@ -311,89 +204,52 @@ private fun StandingsHeader(english: Boolean) {
 @Composable
 fun DriverCard(driver: Driver) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = if (driver.position in 1..3) {
-            MaterialTheme.colorScheme.surfaceVariant
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
+        Modifier.fillMaxWidth(),
+        color = if (driver.position?.let { it in 1..3 } == true) MaterialTheme.colorScheme.surfaceVariant
+        else MaterialTheme.colorScheme.surface
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (driver.position > 0) {
-                        driver.position.toString()
-                    } else {
-                        "—"
-                    },
-                    modifier = Modifier.width(40.dp),
+                    driver.position?.toString() ?: "—",
+                    Modifier.width(40.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(36.dp)
-                        .background(teamColor(driver.teamId))
-                )
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 10.dp)
-                ) {
+                Box(Modifier.width(4.dp).height(36.dp).background(teamColor(driver.teamId)))
+                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                     Text(
-                        text = "${driver.name} ${driver.surname}",
+                        "${driver.name} ${driver.surname}",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
                     Spacer(Modifier.height(4.dp))
-
                     Text(
-                        text = teamName(driver.teamId),
+                        driver.teamName.ifBlank { driver.teamId },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-
                 Text(
-                    text = driver.points.toString(),
-                    modifier = Modifier.width(64.dp),
+                    driver.points?.let { BigDecimal.valueOf(it).stripTrailingZeros().toPlainString() } ?: "—",
+                    Modifier.width(64.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.End,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
-
             HorizontalDivider()
         }
     }
-}
-
-private fun teamName(teamId: String): String = when (teamId) {
-    "mercedes" -> "Mercedes Formula 1 Team"
-    "ferrari" -> "Scuderia Ferrari"
-    "mclaren" -> "McLaren Formula 1 Team"
-    "red_bull" -> "Red Bull Racing"
-    "rb" -> "RB F1 Team"
-    "alpine" -> "Alpine F1 Team"
-    "haas" -> "Haas F1 Team"
-    "audi" -> "Audi Revolut F1 Team"
-    "williams" -> "Williams Racing"
-    "aston_martin" -> "Aston Martin F1 Team"
-    "cadillac" -> "Cadillac Formula 1 Team"
-    else -> teamId
 }
 
 private fun teamColor(teamId: String): Color = when (teamId) {
@@ -416,8 +272,17 @@ private fun teamColor(teamId: String): Color = when (teamId) {
 fun ContentScreenPreview() {
     F1appTheme(darkTheme = true) {
         ContentScreen(
-            drivers = demoDrivers,
-            onSettingsClick = {}
+            state = ContentUiState(
+                drivers = listOf(
+                    Driver("preview", "Andrea", "Kimi Antonelli", 12, "Italy", "ANT", "mercedes", 1, 365.0, "Mercedes")
+                ),
+                season = 2026,
+                origin = DataOrigin.NETWORK
+            ),
+            onSettingsClick = {},
+            onRefresh = {},
+            onLoadMore = {},
+            onClearClick = {}
         )
     }
 }

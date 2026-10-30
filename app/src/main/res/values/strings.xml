@@ -19,7 +19,7 @@
     <string name="confirm_password">Подтвердите пароль</string>
     <string name="register_button">Зарегистрироваться</string>
 
-    <string name="characters_title">Пилоты F1</string>
+    <string name="characters_title">Кубок пилотов</string>
     <string name="settings">Настройки</string>
 
     <string name="character_status">Номер: %1$s</string>
@@ -56,7 +56,7 @@
 
     <!-- Для AndroidManifest -->
     <string name="title_activity_registration">Регистрация</string>
-    <string name="title_activity_content">Пилоты Формулы-1</string>
+    <string name="title_activity_content">Кубок пилотов</string>
     <string name="title_activity_settings">Настройки</string>
 
     <string name="backup_created">Готово</string>
@@ -64,8 +64,8 @@
     <string name="ok">OK</string>
 
     <string name="content_subtitle">Сезон 2026 · данные f1api.dev</string>
-    <string name="empty_content">Нет данных о пилотах. Восстановите резервную копию в настройках.</string>
-    <string name="clear_content">Очистить список</string>
+    <string name="empty_content">Данных нет. Нажмите «Обновить» или восстановите копию в настройках.</string>
+    <string name="clear_content">Очистить</string>
     <string name="load_demo">Загрузить подборку</string>
     <string name="backup_failed">Не удалось создать резервную копию. Проверьте, что список пилотов не пуст.</string>
     <string name="restore_failed">Резервная копия отсутствует или повреждена.</string>
@@ -76,4 +76,23 @@
     <string name="profile_login">Логин: %1$s</string>
     <string name="profile_name">Имя: %1$s</string>
     <string name="load_more">Показать ещё (%1$d)</string>
+    <string name="standings_driver">Пилот / команда</string>
+    <string name="standings_points">Очки</string>
+    <string name="refresh_content">Обновить</string>
+    <string name="retry_loading">Повторить</string>
+    <string name="load_next_page">Загрузить ещё</string>
+    <string name="loading_data">Загрузка таблицы…</string>
+    <string name="loading_more">Загружаем следующую страницу…</string>
+    <string name="network_subtitle">Сезон %1$d · f1api.dev</string>
+    <string name="network_subtitle_unknown">Таблица чемпионата Формулы-1</string>
+    <string name="loaded_count">Загружено пилотов: %1$d</string>
+    <string name="cached_data_notice">Показаны ранее сохранённые данные.</string>
+    <string name="backup_data_notice">Данные восстановлены из резервной копии.</string>
+    <string name="legacy_data_notice">В старом сохранении нет мест или очков. Нажмите «Обновить».</string>
+    <string name="error_network">Нет соединения с сервером. Проверьте интернет и повторите запрос.</string>
+    <string name="error_timeout">Сервер не ответил вовремя. Повторите запрос.</string>
+    <string name="error_http">Ошибка сервера (%1$d). Попробуйте позже.</string>
+    <string name="error_not_found">Данные текущего сезона не найдены.</string>
+    <string name="error_invalid_data">Сервер вернул данные в неожиданном формате. Повторите запрос позже.</string>
+    <string name="error_unknown">Не удалось загрузить таблицу. Повторите запрос.</string>
 </resources>
