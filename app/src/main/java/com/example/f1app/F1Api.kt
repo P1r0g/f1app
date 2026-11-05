@@ -19,7 +19,6 @@ interface F1Api {
 data class DriverChampionshipResponseDto(
     val limit: Int? = null,
     val offset: Int? = null,
-    // The live API returns the PAGE size here, so pagination must not rely on total.
     val total: Int? = null,
     val season: Int? = null,
     @SerializedName("drivers_championship")

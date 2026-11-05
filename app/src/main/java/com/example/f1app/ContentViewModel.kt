@@ -16,7 +16,7 @@ import java.io.EOFException
 import java.net.SocketTimeoutException
 
 enum class DataOrigin { CACHE, NETWORK, BACKUP }
-enum class ContentErrorKind { NETWORK, TIMEOUT, HTTP, INVALID_DATA, UNKNOWN }
+enum class ContentErrorKind { NO_INTERNET, API_CONNECTION, TIMEOUT, HTTP, INVALID_DATA, UNKNOWN }
 data class ContentError(
     val kind: ContentErrorKind,
     val httpCode: Int? = null,
@@ -37,6 +37,7 @@ data class ContentUiState(
 class ContentViewModel(
     private val repository: DriverPageSource,
     private val storage: ChampionshipStorage,
+    private val isInternetAvailable: () -> Boolean,
     private val logger: (String) -> Unit = {}
 ) : ViewModel() {
     companion object { const val PAGE_SIZE = 10 }
@@ -122,6 +123,13 @@ class ContentViewModel(
 
         requestJob = viewModelScope.launch {
             try {
+                if (!isInternetAvailable()) {
+                    logger("Request skipped: NO_INTERNET")
+                    mutableState.update {
+                        it.copy(error = ContentError(ContentErrorKind.NO_INTERNET, append = append))
+                    }
+                    return@launch
+                }
                 logger("GET current/drivers-championship?limit=$PAGE_SIZE&offset=$offset")
                 val page = repository.loadPage(PAGE_SIZE, offset)
                 if (generation != requestGeneration) return@launch
@@ -160,15 +168,23 @@ class ContentViewModel(
             } catch (exception: Exception) {
                 if (generation == requestGeneration) {
                     logger("Request failed: ${exception.javaClass.simpleName}: ${exception.message}")
-                    val error = when (exception) {
-                        is HttpException -> ContentError(ContentErrorKind.HTTP, exception.code())
-                        is SocketTimeoutException -> ContentError(ContentErrorKind.TIMEOUT)
-                        is JsonParseException, is InvalidApiResponseException,
-                        is MalformedJsonException, is EOFException ->
+                    val error = when {
+                        // A received HTTP response is evidence about the API, even if
+                        // the device disconnects immediately after receiving it.
+                        exception is HttpException ->
+                            ContentError(ContentErrorKind.HTTP, exception.code())
+                        // Check again: connectivity may disappear during the request.
+                        exception is IOException && !isInternetAvailable() ->
+                            ContentError(ContentErrorKind.NO_INTERNET)
+                        exception is SocketTimeoutException ->
+                            ContentError(ContentErrorKind.TIMEOUT)
+                        exception is JsonParseException || exception is InvalidApiResponseException ||
+                            exception is MalformedJsonException || exception is EOFException ->
                             ContentError(ContentErrorKind.INVALID_DATA)
-                        is IOException -> ContentError(ContentErrorKind.NETWORK)
+                        exception is IOException -> ContentError(ContentErrorKind.API_CONNECTION)
                         else -> ContentError(ContentErrorKind.UNKNOWN)
                     }
+                    logger("Error category: ${error.kind}, HTTP=${error.httpCode}")
                     mutableState.update {
                         it.copy(
                             isLoading = false,

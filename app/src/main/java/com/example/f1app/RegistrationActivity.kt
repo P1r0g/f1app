@@ -1,6 +1,12 @@
 package com.example.f1app
 
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.imePadding
@@ -30,25 +35,89 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.f1app.ui.theme.F1appTheme
 
-// Previous Activity-based transitions are replaced by MainActivity navigation.
+class RegistrationActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        val language = AppSettings.getLanguage(newBase)
+
+        super.attachBaseContext(
+            LocaleHelper.applyLanguage(newBase, language)
+        )
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        Log.d("F1Lifecycle", "RegistrationActivity: onCreate")
+
+        setContent {
+            F1appTheme(
+                darkTheme = AppSettings.isDarkTheme(this),
+                fontScale = AppSettings.getFontScale(this)
+            ) {
+                RegistrationScreen(
+                    onRegister = { login ->
+                        val resultIntent = Intent().apply {
+                            putExtra("registered_login", login)
+                        }
+
+                        setResult(RESULT_OK, resultIntent)
+                        finish()
+                    }
+                )
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("F1Lifecycle", "RegistrationActivity: onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("F1Lifecycle", "RegistrationActivity: onResume")
+    }
+
+    override fun onPause() {
+        Log.d("F1Lifecycle", "RegistrationActivity: onPause")
+        super.onPause()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d("F1Lifecycle", "RegistrationActivity: onStop")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.d("F1Lifecycle", "RegistrationActivity: onRestart")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("F1Lifecycle", "RegistrationActivity: onDestroy")
+    }
+}
+
 @Composable
 fun RegistrationScreen(
     onRegister: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var lastName by rememberSaveable { mutableStateOf("") }
-    var login by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var login by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
-    var firstNameError by rememberSaveable { mutableStateOf(false) }
-    var lastNameError by rememberSaveable { mutableStateOf(false) }
-    var loginError by rememberSaveable { mutableStateOf(false) }
-    var emailError by rememberSaveable { mutableStateOf(false) }
-    var passwordError by rememberSaveable { mutableStateOf(false) }
-    var confirmPasswordError by rememberSaveable { mutableStateOf(false) }
+    var firstNameError by remember { mutableStateOf(false) }
+    var lastNameError by remember { mutableStateOf(false) }
+    var loginError by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf(false) }
+    var confirmPasswordError by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier

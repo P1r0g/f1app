@@ -89,10 +89,12 @@
     <string name="cached_data_notice">Показаны ранее сохранённые данные.</string>
     <string name="backup_data_notice">Данные восстановлены из резервной копии.</string>
     <string name="legacy_data_notice">В старом сохранении нет мест или очков. Нажмите «Обновить».</string>
-    <string name="error_network">Нет соединения с сервером. Проверьте интернет и повторите запрос.</string>
-    <string name="error_timeout">Сервер не ответил вовремя. Повторите запрос.</string>
-    <string name="error_http">Ошибка сервера (%1$d). Попробуйте позже.</string>
+    <string name="error_timeout">Сервер API не ответил вовремя. Попробуйте позже.</string>
+    <string name="error_http">Ошибка на сервере API (HTTP %1$d). Попробуйте позже.</string>
     <string name="error_not_found">Данные текущего сезона не найдены.</string>
     <string name="error_invalid_data">Сервер вернул данные в неожиданном формате. Повторите запрос позже.</string>
     <string name="error_unknown">Не удалось загрузить таблицу. Повторите запрос.</string>
+    <string name="error_no_internet">Нет подключения к интернету. Включите Wi-Fi или мобильные данные и проверьте подключение.</string>
+    <string name="error_api_connection">Не удалось подключиться к серверу API. Попробуйте позже.</string>
+    <string name="error_http_client">Ошибка запроса к API (HTTP %1$d). Повторите запрос позже.</string>
 </resources>

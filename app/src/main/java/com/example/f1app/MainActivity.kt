@@ -114,6 +114,7 @@ private fun F1App(
                 return ContentViewModel(
                     repository = F1Repository(F1ApiClient.create()),
                     storage = PreferencesChampionshipStorage(appContext),
+                    isInternetAvailable = InternetConnectionChecker(appContext)::isAvailable,
                     logger = { message -> Log.d("F1Network", message) }
                 ) as T
             }

@@ -88,10 +88,12 @@
     <string name="cached_data_notice">Previously saved data is displayed.</string>
     <string name="backup_data_notice">Data restored from a backup.</string>
     <string name="legacy_data_notice">The old saved data has no positions or points. Refresh the standings.</string>
-    <string name="error_network">Cannot connect to the server. Check your internet connection and retry.</string>
-    <string name="error_timeout">The server did not respond in time. Please retry.</string>
-    <string name="error_http">Server error (%1$d). Please try again later.</string>
+    <string name="error_timeout">The API server did not respond in time. Please try again later.</string>
+    <string name="error_http">API server error (HTTP %1$d). Please try again later.</string>
     <string name="error_not_found">No standings found for the current season.</string>
     <string name="error_invalid_data">The server returned data in an unexpected format. Please try again later.</string>
     <string name="error_unknown">Could not load the standings. Please retry.</string>
+    <string name="error_no_internet">No internet connection. Enable Wi-Fi or mobile data and check your connection.</string>
+    <string name="error_api_connection">Could not connect to the API server. Please try again later.</string>
+    <string name="error_http_client">API request error (HTTP %1$d). Please try again later.</string>
 </resources>

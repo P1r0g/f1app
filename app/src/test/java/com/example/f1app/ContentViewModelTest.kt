@@ -16,11 +16,21 @@ import org.junit.Before
 import org.junit.Test
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import retrofit2.HttpException
+import retrofit2.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContentViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(StandardTestDispatcher()) }
     @After fun tearDown() { Dispatchers.resetMain() }
+
+
+    private fun createViewModel(
+        source: DriverPageSource,
+        storage: ChampionshipStorage,
+        isInternetAvailable: () -> Boolean = { true }
+    ) = ContentViewModel(source, storage, isInternetAvailable)
 
     private fun driver(id: Int, points: Double = id.toDouble()) =
         Driver("id$id", "Name", "Driver$id", id + 1, "", "TST", "team", id + 1, points)
@@ -55,7 +65,7 @@ class ContentViewModelTest {
         val legacy = driver(0).copy(position = null, points = null)
         val store = FakeStorage(StoredChampionship(listOf(legacy), 2026))
         val source = FakeSource { _, _ -> DriverPage(listOf(driver(0, 365.0)), 2026, 1, false) }
-        val vm = ContentViewModel(source, store)
+        val vm = createViewModel(source, store)
         vm.onScreenOpened()
         vm.onScreenOpened()
         advanceUntilIdle()
@@ -71,7 +81,7 @@ class ContentViewModelTest {
             val count = if (offset == 20) 2 else limit
             DriverPage((offset until offset + count).map { driver(it) }, 2026, offset + count, count == limit)
         }
-        val vm = ContentViewModel(source, FakeStorage())
+        val vm = createViewModel(source, FakeStorage())
         vm.refresh(); advanceUntilIdle()
         vm.loadMore(); vm.loadMore(); advanceUntilIdle()
         vm.loadMore(); advanceUntilIdle()
@@ -81,15 +91,15 @@ class ContentViewModelTest {
         assertFalse(vm.state.value.hasMore)
     }
 
-    @Test fun `network error preserves saved standings`() = runTest {
+    @Test fun `API connection error with internet preserves saved standings`() = runTest {
         val snapshot = StoredChampionship(listOf(driver(0, 0.0)), 2026)
         val store = FakeStorage(snapshot)
         val source = FakeSource { _, _ -> throw UnknownHostException("offline") }
-        val vm = ContentViewModel(source, store)
+        val vm = createViewModel(source, store)
         vm.refresh(); advanceUntilIdle()
         assertEquals(snapshot.drivers, vm.state.value.drivers)
         assertEquals(snapshot, store.current)
-        assertEquals(ContentErrorKind.NETWORK, vm.state.value.error?.kind)
+        assertEquals(ContentErrorKind.API_CONNECTION, vm.state.value.error?.kind)
         assertFalse(vm.state.value.isLoading)
     }
 
@@ -103,7 +113,7 @@ class ContentViewModelTest {
             if (offset == 0) DriverPage((0..9).map { driver(it) }, 2026, 10, true)
             else DriverPage(listOf(driver(10)), 2026, 11, false)
         }
-        val vm = ContentViewModel(source, FakeStorage())
+        val vm = createViewModel(source, FakeStorage())
         vm.refresh(); advanceUntilIdle()
         vm.loadMore(); advanceUntilIdle()
         assertEquals(10, vm.state.value.drivers.size)
@@ -121,7 +131,7 @@ class ContentViewModelTest {
             catch (_: CancellationException) { DriverPage(listOf(driver(9)), 2026, 1, false) }
         }
         val store = FakeStorage(StoredChampionship(listOf(driver(0)), 2026))
-        val vm = ContentViewModel(source, store)
+        val vm = createViewModel(source, store)
         vm.refresh(); runCurrent()
         vm.clearContent(); advanceUntilIdle()
         assertTrue(vm.state.value.drivers.isEmpty())
@@ -137,7 +147,7 @@ class ContentViewModelTest {
         }
         val backup = StoredChampionship(listOf(driver(0, 8.5)), 2026)
         val store = FakeStorage(backup = backup)
-        val vm = ContentViewModel(source, store)
+        val vm = createViewModel(source, store)
         vm.refresh(); runCurrent()
         assertTrue(vm.restoreBackup())
         advanceUntilIdle()
@@ -153,7 +163,7 @@ class ContentViewModelTest {
             10 -> DriverPage((9..18).map { driver(it) }, 2026, 20, true)
             else -> DriverPage(listOf(driver(19)), 2026, 21, false)
         } }
-        val vm = ContentViewModel(source, FakeStorage())
+        val vm = createViewModel(source, FakeStorage())
         vm.refresh(); advanceUntilIdle()
         vm.loadMore(); advanceUntilIdle()
         vm.loadMore(); advanceUntilIdle()
@@ -163,7 +173,7 @@ class ContentViewModelTest {
 
     @Test fun `empty response clears stale rows and ends loading`() = runTest {
         val store = FakeStorage(StoredChampionship(listOf(driver(0)), 2026))
-        val vm = ContentViewModel(FakeSource { _, _ -> DriverPage(emptyList(), 2026, 0, false) }, store)
+        val vm = createViewModel(FakeSource { _, _ -> DriverPage(emptyList(), 2026, 0, false) }, store)
         vm.refresh(); advanceUntilIdle()
         assertTrue(vm.state.value.drivers.isEmpty())
         assertFalse(vm.state.value.hasMore)
@@ -173,10 +183,84 @@ class ContentViewModelTest {
 
     @Test fun `backup creation and deletion update the UI state`() = runTest {
         val store = FakeStorage(StoredChampionship(listOf(driver(0)), 2026))
-        val vm = ContentViewModel(FakeSource { _, _ -> error("No network request expected") }, store)
+        val vm = createViewModel(FakeSource { _, _ -> error("No network request expected") }, store)
         assertTrue(vm.createBackup())
         assertTrue(vm.state.value.backupExists)
         assertTrue(vm.deleteBackup())
         assertFalse(vm.state.value.backupExists)
     }
+
+    @Test fun `offline device shows connection advice without calling API`() = runTest {
+        val saved = StoredChampionship(listOf(driver(0)), 2026)
+        val store = FakeStorage(saved)
+        val source = FakeSource { _, _ -> error("Must not request API while offline") }
+        val vm = createViewModel(source, store, isInternetAvailable = { false })
+        vm.refresh(); advanceUntilIdle()
+        assertTrue(source.calls.isEmpty())
+        assertEquals(ContentErrorKind.NO_INTERNET, vm.state.value.error?.kind)
+        assertEquals(saved, store.current)
+        assertEquals(saved.drivers, vm.state.value.drivers)
+        assertFalse(vm.state.value.isLoading)
+    }
+
+    @Test fun `internet disappearing during request is not reported as server failure`() = runTest {
+        var online = true
+        val source = FakeSource { _, _ ->
+            online = false
+            throw UnknownHostException("connection lost")
+        }
+        val vm = createViewModel(source, FakeStorage(), isInternetAvailable = { online })
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(1, source.calls.size)
+        assertEquals(ContentErrorKind.NO_INTERNET, vm.state.value.error?.kind)
+    }
+
+    @Test fun `timeout after losing internet shows offline error`() = runTest {
+        var online = true
+        val source = FakeSource { _, _ ->
+            online = false
+            throw SocketTimeoutException("connection lost")
+        }
+        val vm = createViewModel(source, FakeStorage(), isInternetAvailable = { online })
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(ContentErrorKind.NO_INTERNET, vm.state.value.error?.kind)
+    }
+
+    @Test fun `HTTP 503 remains server error even if connectivity changes afterwards`() = runTest {
+        var online = true
+        val saved = StoredChampionship(listOf(driver(0)), 2026)
+        val source = FakeSource { _, _ ->
+            online = false
+            throw HttpException(Response.error<Any>(503, "unavailable".toResponseBody()))
+        }
+        val vm = createViewModel(source, FakeStorage(saved), isInternetAvailable = { online })
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(ContentErrorKind.HTTP, vm.state.value.error?.kind)
+        assertEquals(503, vm.state.value.error?.httpCode)
+        assertEquals(saved.drivers, vm.state.value.drivers)
+    }
+
+    @Test fun `HTTP 400 retains code for API request error message`() = runTest {
+        val source = FakeSource { _, _ ->
+            throw HttpException(Response.error<Any>(400, "bad request".toResponseBody()))
+        }
+        val vm = createViewModel(source, FakeStorage())
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(ContentErrorKind.HTTP, vm.state.value.error?.kind)
+        assertEquals(400, vm.state.value.error?.httpCode)
+    }
+
+    @Test fun `retry succeeds after internet is enabled`() = runTest {
+        var online = false
+        val source = FakeSource { _, _ -> DriverPage(listOf(driver(0)), 2026, 1, false) }
+        val vm = createViewModel(source, FakeStorage(), isInternetAvailable = { online })
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(ContentErrorKind.NO_INTERNET, vm.state.value.error?.kind)
+        online = true
+        vm.refresh(); advanceUntilIdle()
+        assertEquals(1, source.calls.size)
+        assertNull(vm.state.value.error)
+        assertEquals(DataOrigin.NETWORK, vm.state.value.origin)
+    }
+
 }

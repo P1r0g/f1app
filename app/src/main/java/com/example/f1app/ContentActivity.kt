@@ -168,13 +168,16 @@ fun ContentScreen(
 
 @Composable
 private fun contentErrorMessage(error: ContentError): String = when (error.kind) {
-    ContentErrorKind.NETWORK -> stringResource(R.string.error_network)
+    ContentErrorKind.NO_INTERNET -> stringResource(R.string.error_no_internet)
+    ContentErrorKind.API_CONNECTION -> stringResource(R.string.error_api_connection)
     ContentErrorKind.TIMEOUT -> stringResource(R.string.error_timeout)
     ContentErrorKind.INVALID_DATA -> stringResource(R.string.error_invalid_data)
     ContentErrorKind.UNKNOWN -> stringResource(R.string.error_unknown)
-    ContentErrorKind.HTTP -> if (error.httpCode == 404) {
-        stringResource(R.string.error_not_found)
-    } else stringResource(R.string.error_http, error.httpCode ?: 0)
+    ContentErrorKind.HTTP -> when (val code = error.httpCode ?: 0) {
+        404 -> stringResource(R.string.error_not_found)
+        in 500..599 -> stringResource(R.string.error_http, code)
+        else -> stringResource(R.string.error_http_client, code)
+    }
 }
 
 @Composable
