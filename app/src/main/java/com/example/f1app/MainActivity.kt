@@ -128,7 +128,7 @@ private fun F1App(
     // Other destinations use NavHost's back stack. Root Back finishes the Activity.
     BackHandler(
         enabled = currentEntry?.destination?.route == AppRoutes.START ||
-            currentEntry?.destination?.route == AppRoutes.CONTENT
+                currentEntry?.destination?.route == AppRoutes.CONTENT
     ) {
         onExit()
     }

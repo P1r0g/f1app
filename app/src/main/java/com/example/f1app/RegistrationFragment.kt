@@ -1,12 +1,7 @@
 package com.example.f1app
 
-import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.util.Log
+
 import android.util.Patterns
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,71 +29,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.f1app.ui.theme.F1appTheme
-
-class RegistrationActivity : ComponentActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        val language = AppSettings.getLanguage(newBase)
-
-        super.attachBaseContext(
-            LocaleHelper.applyLanguage(newBase, language)
-        )
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        Log.d("F1Lifecycle", "RegistrationActivity: onCreate")
-
-        setContent {
-            F1appTheme(
-                darkTheme = AppSettings.isDarkTheme(this),
-                fontScale = AppSettings.getFontScale(this)
-            ) {
-                RegistrationScreen(
-                    onRegister = { login ->
-                        val resultIntent = Intent().apply {
-                            putExtra("registered_login", login)
-                        }
-
-                        setResult(RESULT_OK, resultIntent)
-                        finish()
-                    }
-                )
-            }
-        }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d("F1Lifecycle", "RegistrationActivity: onStart")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d("F1Lifecycle", "RegistrationActivity: onResume")
-    }
-
-    override fun onPause() {
-        Log.d("F1Lifecycle", "RegistrationActivity: onPause")
-        super.onPause()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d("F1Lifecycle", "RegistrationActivity: onStop")
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.d("F1Lifecycle", "RegistrationActivity: onRestart")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("F1Lifecycle", "RegistrationActivity: onDestroy")
-    }
-}
 
 @Composable
 fun RegistrationScreen(
@@ -275,7 +205,11 @@ fun RegistrationScreen(
                     !passwordError &&
                     !confirmPasswordError
                 ) {
-                    AppSettings.saveProfile(context, login, "${firstName.trim()} ${lastName.trim()}")
+                    AppSettings.saveProfile(
+                        context,
+                        login,
+                        "${firstName.trim()} ${lastName.trim()}"
+                    )
                     onRegister(login.trim())
                 }
             },

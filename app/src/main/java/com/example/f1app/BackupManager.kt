@@ -97,6 +97,7 @@ class PreferencesChampionshipStorage(context: Context) : ChampionshipStorage {
     override fun read() = BackupManager.getCurrentSnapshot(appContext)
     override fun write(snapshot: StoredChampionship) =
         BackupManager.setCurrentSnapshot(appContext, snapshot)
+
     override fun createBackup() = BackupManager.createBackup(appContext)
     override fun restoreBackup() = BackupManager.restoreBackup(appContext)
     override fun deleteBackup() = BackupManager.deleteBackup(appContext)
